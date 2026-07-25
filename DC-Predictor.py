@@ -5,18 +5,18 @@ from datetime import datetime
 import plotly.express as px
 
 st.set_page_config(page_title="Dream Catcher AI", layout="wide")
-st.title(" Dream Catcher Predictor + Tracker")
+st.title("🎰🌃 Dream Catcher Predictor + Tracker")
 
 # Full Wheel Data
 wheel_info = {
-    1:  {"label": "1",  "color": " Yellow", "pays": 1,   "type": "number"},
-    2:  {"label": "2",  "color": " Blue",  "pays": 2,   "type": "number"},
-    5:  {"label": "5",  "color": " Purple", "pays": 5,   "type": "number"},
-    10: {"label": "10", "color": " Green", "pays": 10,  "type": "number"},
-    20: {"label": "20", "color": " Orange", "pays": 20,  "type": "number"},
-    40: {"label": "40", "color": " Red",   "pays": 40,  "type": "number"},
-    "X2":{"label": "x2","color": " Black", "pays": 2,    "type": "multiplier"},
-    "X7":{"label": "x7","color": " Gold",  "pays": 7,    "type": "multiplier"}
+    1:  {"label": "1",  "color": "🟡 Yellow", "pays": 1,   "type": "number"},
+    2:  {"label": "2",  "color": "🔵 Blue",  "pays": 2,   "type": "number"},
+    5:  {"label": "5",  "color": "🟣 Purple", "pays": 5,   "type": "number"},
+    10: {"label": "10", "color": "🟢 Green", "pays": 10,  "type": "number"},
+    20: {"label": "20", "color": "🟠 Orange", "pays": 20,  "type": "number"},
+    40: {"label": "40", "color": "🔴 Red",   "pays": 40,  "type": "number"},
+    "X2":{"label": "x2","color": "⚫ Black", "pays": 2,    "type": "multiplier"},
+    "X7":{"label": "x7","color": "☀️ Gold",  "pays": 7,    "type": "multiplier"}
 }
 
 possible = list(wheel_info.keys())
