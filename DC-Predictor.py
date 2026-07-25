@@ -50,26 +50,79 @@ with col3:
         st.session_state.predictions = []
         st.rerun()
 
+# === Improved Prediction Block ===
 if st.button(" Predict Next + Update", type="primary"):
     if len(st.session_state.history) < order + 1:
         st.warning("Log more spins first.")
     else:
         h = st.session_state.history
-        transitions = defaultdict(lambda: defaultdict(int))
-        for i in range(len(h) - order):
-            state = tuple(h[i:i+order])
-            nxt = h[i + order]
-            transitions[state][nxt] += 1
+        
+        # Give more weight to recent spins
+        weighted_history = h[-30:] if len(h) > 30 else h
+        
+        transitions = defaultdict(lambda: defaultdict(float))
+        for i in range(len(weighted_history) - order):
+            state = tuple(weighted_history[i:i+order])
+            nxt = weighted_history[i + order]
+            # Recent transitions get higher weight
+            weight = 1.0 + (i / len(weighted_history))
+            transitions[state][nxt] += weight
 
-        last_state = tuple(h[-order:])
+        last_state = tuple(weighted_history[-order:])
         counts = transitions[last_state]
 
-        # Bayesian smoothing
-        smoothed = {o: alpha for o in possible}
-        total = alpha * len(possible)
+        # Bayesian smoothing (milder)
+        smoothed = {o: alpha * 0.5 for o in possible}  # milder prior
+        total = sum(smoothed.values())
         for o, c in counts.items():
             smoothed[o] += c
             total += c
+
+        probs = {k: v / total for k, v in smoothed.items()}
+
+        # Reduce natural bias of Yellow (1) when data is limited
+        if len(h) < 50:
+            probs[1] *= 0.75
+            total_p = sum(probs.values())
+            probs = {k: v / total_p for k, v in probs.items()}
+
+        # Get Top 3 predictions
+        top3 = sorted(probs.items(), key=lambda x: x[1], reverse=True)[:3]
+
+        best = top3[0][0]
+        best_info = wheel_info[best]
+
+        # EV calculation
+        if best_info["type"] == "number":
+            ev = probs[best] * best_info["pays"] - (1 - probs[best])
+            ev_text = f"{ev:.3f}"
+        else:
+            ev_text = "Depends on next number"
+
+        st.session_state.predictions.append({
+            "time": datetime.now().strftime("%H:%M"),
+            "predicted": best,
+            "prob": round(probs[best], 4),
+            "ev": ev_text
+        })
+
+        # Display Top 3
+        st.success(f"**Top Prediction: {best_info['label']} {best_info['color']}**   {probs[best]:.1%} | EV: {ev_text}")
+
+        st.write("### Top 3 Predictions")
+        for rank, (outcome, prob) in enumerate(top3, 1):
+            info = wheel_info[outcome]
+            st.write(f"{rank}. **{info['label']} {info['color']}**   {prob:.1%}")
+
+        # Charts
+        st.subheader(" Probability Distribution")
+        prob_df = pd.DataFrame({
+            "Outcome": [wheel_info[o]["label"] for o in possible],
+            "Probability": [probs[o] for o in possible]
+        })
+        fig = px.bar(prob_df, x="Outcome", y="Probability", text_auto='.1%')
+        fig.update_layout(yaxis_tickformat='.0%')
+        st.plotly_chart(fig, use_container_width=True)
 
         probs = {k: v / total for k, v in smoothed.items()}
         best = max(probs, key=probs.get)
