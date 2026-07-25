@@ -4,55 +4,55 @@ from collections import defaultdict
 from datetime import datetime
 import plotly.express as px
 
-st.set_page_config(page_title="Wheel AI Tracker", layout="wide")
-st.title("🎡 Wheel Predictor + Tracker + Charts")
+st.set_page_config(page_title="Dream Catcher AI", layout="wide")
+st.title(" Dream Catcher Predictor + Tracker")
 
-# Wheel data
+# Full Wheel Data
 wheel_info = {
-    1: {"color": "🟡 Yellow", "pays": 1},
-    2: {"color": "🔵 Blue", "pays": 2},
-    5: {"color": "🟣 Purple", "pays": 5},
-    10: {"color": "🟢 Green", "pays": 10},
-    20: {"color": "🟠 Orange", "pays": 20},
-    40: {"color": "🔴 Red", "pays": 40}
+    1:  {"label": "1",  "color": " Yellow", "pays": 1,   "type": "number"},
+    2:  {"label": "2",  "color": " Blue",  "pays": 2,   "type": "number"},
+    5:  {"label": "5",  "color": " Purple", "pays": 5,   "type": "number"},
+    10: {"label": "10", "color": " Green", "pays": 10,  "type": "number"},
+    20: {"label": "20", "color": " Orange", "pays": 20,  "type": "number"},
+    40: {"label": "40", "color": " Red",   "pays": 40,  "type": "number"},
+    "X2":{"label": "x2","color": " Black", "pays": 2,    "type": "multiplier"},
+    "X7":{"label": "x7","color": " Gold",  "pays": 7,    "type": "multiplier"}
 }
-possible = [1, 2, 5, 10, 20, 40]
 
-# Session state
+possible = list(wheel_info.keys())
+
 if 'history' not in st.session_state:
     st.session_state.history = []
 if 'predictions' not in st.session_state:
     st.session_state.predictions = []
 
-# Quick Input Buttons
+# Input Buttons
 st.subheader("Tap to Log Last Spin")
-cols = st.columns(6)
-for i, num in enumerate(possible):
-    with cols[i]:
-        if st.button(f"{num} {wheel_info[num]['color']}", key=f"btn_{num}", use_container_width=True):
-            st.session_state.history.append(num)
+cols = st.columns(4)
+for i, outcome in enumerate(possible):
+    info = wheel_info[outcome]
+    with cols[i % 4]:
+        if st.button(f"{info['label']} {info['color']}", key=f"btn_{i}", use_container_width=True):
+            st.session_state.history.append(outcome)
             st.rerun()
 
 # Controls
-col1, col2, col3 = st.columns([2, 2, 1])
+col1, col2, col3 = st.columns([2,2,1])
 with col1:
     order = st.slider("Markov Order", 1, 3, 2)
 with col2:
-    alpha = st.slider("Smoothing (α)", 0.0, 2.0, 0.5, 0.1)
+    alpha = st.slider("Smoothing ()", 0.0, 2.0, 0.5, 0.1)
 with col3:
     if st.button("Undo Last"):
-        if st.session_state.history:
-            st.session_state.history.pop()
-            st.rerun()
+        if st.session_state.history: st.session_state.history.pop(); st.rerun()
     if st.button("Clear All"):
         st.session_state.history = []
         st.session_state.predictions = []
         st.rerun()
 
-# Predict
-if st.button("🔮 Predict Next + Update", type="primary"):
+if st.button(" Predict Next + Update", type="primary"):
     if len(st.session_state.history) < order + 1:
-        st.warning("Add more spins first.")
+        st.warning("Log more spins first.")
     else:
         h = st.session_state.history
         transitions = defaultdict(lambda: defaultdict(int))
@@ -73,49 +73,44 @@ if st.button("🔮 Predict Next + Update", type="primary"):
 
         probs = {k: v / total for k, v in smoothed.items()}
         best = max(probs, key=probs.get)
-        ev = probs[best] * wheel_info[best]["pays"] - (1 - probs[best])
+
+        # EV Calculation (Fixed for multipliers)
+        best_info = wheel_info[best]
+        if best_info["type"] == "number":
+            ev = probs[best] * best_info["pays"] - (1 - probs[best])
+        else:
+            # For multipliers, EV is more complex (depends on next number)
+            ev = "N/A (depends on next number)"
 
         st.session_state.predictions.append({
             "time": datetime.now().strftime("%H:%M"),
             "predicted": best,
             "prob": round(probs[best], 4),
-            "ev": round(ev, 4)
+            "ev": ev
         })
 
-        st.success(f"**Best Bet: {best} {wheel_info[best]['color']}** — {probs[best]:.1%} | EV: {ev:.3f}")
+        display_ev = ev if isinstance(ev, str) else f"{ev:.3f}"
+        st.success(f"**Best Bet: {best_info['label']} {best_info['color']}**   {probs[best]:.1%} | EV: {display_ev}")
 
-        # === CHARTS ===
-        st.subheader("📊 Probability Visualization")
-
-        # Bar Chart
+        # Charts
+        st.subheader(" Probability Distribution")
         prob_df = pd.DataFrame({
-            "Number": possible,
-            "Probability": [probs[o] for o in possible],
-            "Color": [wheel_info[o]["color"] for o in possible]
+            "Outcome": [wheel_info[o]["label"] for o in possible],
+            "Probability": [probs[o] for o in possible]
         })
-
-        fig = px.bar(prob_df, x="Number", y="Probability", 
-                     color="Color", text_auto='.1%',
-                     title="Next Spin Probability Distribution")
+        fig = px.bar(prob_df, x="Outcome", y="Probability", text_auto='.1%')
         fig.update_layout(yaxis_tickformat='.0%')
         st.plotly_chart(fig, use_container_width=True)
 
-        # Pie Chart
-        fig2 = px.pie(prob_df, names="Number", values="Probability", 
-                      title="Probability Breakdown", hole=0.4)
-        st.plotly_chart(fig2, use_container_width=True)
-
-# History & Performance
+# History
 st.subheader("History")
 if st.session_state.history:
-    st.write(" → ".join(map(str, st.session_state.history[-30:])))
-else:
-    st.info("No spins logged yet.")
+    display = [wheel_info[x]["label"] for x in st.session_state.history[-20:]]
+    st.write("  ".join(display))
 
-st.subheader("📈 Performance")
+st.subheader(" Performance")
 if st.session_state.predictions:
-    pred_df = pd.DataFrame(st.session_state.predictions)
-    st.dataframe(pred_df, use_container_width=True, hide_index=True)
-    st.metric("Total Spins", len(st.session_state.history))
+    df = pd.DataFrame(st.session_state.predictions)
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
-st.caption("Gamble responsibly • Data is stored only during this session")
+st.caption("Gamble responsibly")
